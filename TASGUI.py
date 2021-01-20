@@ -9,8 +9,7 @@ from pyqtgraph.exporters import ImageExporter
 
 from DataHandler import *
 import pyqtgraph as pg
-from matplotlib.pyplot import axis
-
+import sys
 
 DarkPalette = QPalette()
 DarkPalette.setColor(QPalette.Window, QColor(53, 53, 53))
@@ -200,6 +199,7 @@ class PlotterWindow(QMainWindow):
         data_handler = DataControlWidget(self)
 
 
+
 class ControlPanelWidget(QWidget):
 
     def __init__(self, parent=None):
@@ -255,6 +255,8 @@ class ControlPanelWidget(QWidget):
         self.W0 = W0
 
         return delta_wl, W0, wlen_min, wlen_max, T0, time_min, time_max, inty_min, inty_max
+
+
 
 class SurfPlotWidget(QWidget):
 
@@ -333,8 +335,8 @@ class TracesWidget(pg.GraphicsLayoutWidget):
         self.adjustSize()
 
 
+
 if __name__=='__main__':
-    import sys
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")

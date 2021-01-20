@@ -1,11 +1,57 @@
-import os
-import sys
-from gui_config import *
+from PyQt5 import uic
+from PyQt5.QtCore import QObject, Qt, QRectF
+from PyQt5.QtGui import QDoubleValidator, QFont, QColor, QImage, QPalette
+from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, \
+                            QFileDialog, QWidget, QGridLayout, \
+                            QSplitter, QMessageBox
 
-import random
-import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
+import pyqtgraph as pg
+from pyqtgraph.exporters import ImageExporter
+import sys
+
+
+DarkPalette = QPalette()
+DarkPalette.setColor(QPalette.Window, QColor(53, 53, 53))
+DarkPalette.setColor(QPalette.WindowText, Qt.white)
+DarkPalette.setColor(QPalette.Base, QColor(25, 25, 25))
+DarkPalette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+DarkPalette.setColor(QPalette.ToolTipBase, Qt.white)
+DarkPalette.setColor(QPalette.ToolTipText, Qt.white)
+DarkPalette.setColor(QPalette.Text, Qt.white)
+DarkPalette.setColor(QPalette.Button, QColor(53, 53, 53))
+DarkPalette.setColor(QPalette.ButtonText, Qt.white)
+DarkPalette.setColor(QPalette.BrightText, Qt.red)
+DarkPalette.setColor(QPalette.Link, QColor(42, 130, 218))
+DarkPalette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+DarkPalette.setColor(QPalette.HighlightedText, Qt.black)
+
+pg.setConfigOptions(imageAxisOrder='row-major', antialias=True, crashWarning=True)
+pg.setConfigOption('background', 'w')
+pg.setConfigOption('foreground', 'k')
+
+BuRd_map = pg.ColorMap((1.0,0.5,0.0), ((255,0,0,255), (255,255,255,255), (0,0,255,255)))
+BuRd_lut = BuRd_map.getLookupTable()
+
+colors_dict = {
+            'black':(0, 0 ,0),
+            'red':(255, 0, 0),
+            'blue':(0, 0, 255),
+            'green':(0, 255, 0),
+            'magenta':(255, 0, 255),
+            'skyblue':(127,191,255),
+            'cyan':(0, 255, 255),
+            'orange':(255, 127, 64),
+            'violet':(200, 20, 120),
+            'turquoise':(127,255,191),
+            'yellow':(255, 255, 127),
+            'pink':(255,127,127),
+            'gray':(127, 127, 127)
+        }
+
+colors_list = list(colors_dict.values())
+
+symbols = {"None":None, u"\u2022":"o", u"\u002B":"+", u"\u2266":"d", u"\u25B2":"t", u"\u25A0":"s", u"\u2B1F":"p"}
+labelstyle = {'color': 'k', 'font-size': '12pt'}
 
 
 class MainWindow(QMainWindow):
@@ -116,7 +162,7 @@ class PlotterWindow(QMainWindow):
         self.GraphArea.addLegend(size=(50,50), offset=(-50, 50))
         self.GraphArea.showGrid(x=True, y=True, alpha=0.5)
 
-        self.GrapExporter = pg.exporters.ImageExporter(self.GraphArea)
+        self.GrapExporter = ImageExporter(self.GraphArea)
         self.GrapExporter.parameters()['height'] = 2000
 
         self.setupUI()
@@ -331,9 +377,12 @@ class PlotterWindow(QMainWindow):
             self.list_of_curves[idx].setData(xdata, ydata, name=self.list_of_datanames[idx])
 
 if __name__=='__main__':
+    
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    app.setPalette(palette)
+    app.setPalette(DarkPalette)
+    
     mainwindow = MainWindow()
     mainwindow.showMaximized()
+    
     sys.exit(app.exec_())
