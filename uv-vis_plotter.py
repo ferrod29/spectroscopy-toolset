@@ -8,6 +8,10 @@ from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, \
 import pyqtgraph as pg
 from pyqtgraph.exporters import ImageExporter
 import sys
+import os
+import numpy as np
+import pandas as pd
+from snippets import *
 
 
 DarkPalette = QPalette()
@@ -32,7 +36,7 @@ pg.setConfigOption('foreground', 'k')
 BuRd_map = pg.ColorMap((1.0,0.5,0.0), ((255,0,0,255), (255,255,255,255), (0,0,255,255)))
 BuRd_lut = BuRd_map.getLookupTable()
 
-colors_dict = {
+colors = {
             'black':(0, 0 ,0),
             'red':(255, 0, 0),
             'blue':(0, 0, 255),
@@ -48,7 +52,7 @@ colors_dict = {
             'gray':(127, 127, 127)
         }
 
-colors_list = list(colors_dict.values())
+colors = list(colors.values())
 
 symbols = {"None":None, u"\u2022":"o", u"\u002B":"+", u"\u2266":"d", u"\u25B2":"t", u"\u25A0":"s", u"\u2B1F":"p"}
 labelstyle = {'color': 'k', 'font-size': '12pt'}
@@ -377,12 +381,14 @@ class PlotterWindow(QMainWindow):
             self.list_of_curves[idx].setData(xdata, ydata, name=self.list_of_datanames[idx])
 
 if __name__=='__main__':
-    
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     app.setPalette(DarkPalette)
-    
+    screen_resolution = app.desktop().screenGeometry()
+    width, height = screen_resolution.width(), screen_resolution.height()
+
     mainwindow = MainWindow()
     mainwindow.showMaximized()
-    
+
     sys.exit(app.exec_())
