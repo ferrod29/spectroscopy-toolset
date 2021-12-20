@@ -11,11 +11,11 @@ from PyQt5.QtCore import QObject, Qt
 from snippets import *
 
 def fit_chirp(p, x, y):
-    return func_residuals(func_exponent, p, x, y)
+    return residuals_func(exponent_func, p, x, y)
 
 
 def fit_trace(p, x, y):
-    return func_residuals(triexp_decay, p, x, y)
+    return residuals_func(triexp_func, p, x, y)
 
 
 labelstyle = {'color': 'k', 'font-size': '12pt'}
@@ -361,7 +361,7 @@ class DataControlWidget(QObject):
 
         params = exp_result.x
 
-        new_il_max = func_exponent(params, self.avg_wl)
+        new_il_max = exponent_func(params, self.avg_wl)
 
         plt.plot(self.avg_wl, new_il_max, 'r')
         plt.show()
@@ -620,7 +620,7 @@ class DataControlWidget(QObject):
                                            max_nfev=10000)
 
                 params = exp_result.x
-                fit_curve = triexp_decay(params, self.time_range)
+                fit_curve = triexp_func(params, self.time_range)
 
                 self.parent.traces_widget.kinetics.plot(self.time_range, fit_curve, pen={'color':'r', 'width':2, 'style':Qt.DashLine}, name='<math>&tau;<sub>1</sub> = {} ps</math>\t<math>&tau;<sub>2</sub> = {} ps</math>\t<math>&tau;<sub>3</sub> = {} ps</math>'.format(round(params[0],2),round(params[1],2),round(params[2],2)))
 

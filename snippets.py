@@ -5,23 +5,55 @@ snippets
 import numpy as np
 
 
-def func_exponent(p, x):
+def exponent_func(p, x):
     return p[0]*x**p[1] + p[2]
 
-def exp_decay(p, x):
-    return p[1]*np.exp(-x/p[0])
 
-def biexp_decay(p, x):
-    return p[2]*np.exp(-x/p[0]) + p[3]*np.exp(-x/p[1])
+def exp_func(p, x):
+    return p[0]*np.exp(-x/p[1]) + p[2]
 
-def triexp_decay(p, x):
-    return p[3]*np.exp(-x/p[0]) + p[4]*np.exp(-x/p[1]) + p[5]*np.exp(-x/p[2])
 
-def sinexp_decay(p, x):
-    return np.multiply(p[0]*np.exp(-x/p[1]), np.sin(p[2]*x/5309 + p[3]))
+def biexp_func(p, x):
+    return p[0]*np.exp(-x/p[1]) + p[2]*np.exp(-x/p[3])
 
-def func_residuals(func, p, x, y):
+
+def triexp_func(p, x):
+    return p[0]*np.exp(-x/p[1]) + p[2]*np.exp(-x/p[3]) + p[4]*np.exp(-x/p[5])
+
+
+def sinexp_func(p, x):
+    '''
+    p[0] = A0
+    p[1] = tau
+    p[2] = omega
+    p[3] = phi
+    '''
+    ### 5309 is a conv factor for omega in cm^-1
+    #return np.multiply(p[0]*np.exp(-x/p[1]), np.sin(p[2]*x/5309 + p[3]))
+    return np.multiply(p[0]*np.exp(-x/p[1]), np.sin(p[2]*x + p[3]))
+
+
+def gaussian_func(p, x):
+    '''
+    p[0] = A0
+    p[1] = sigma
+    p[2] = x0
+    '''
+    return p[0]*np.exp(-0.5*((x-p[2])/p[1])**2.0)
+
+
+def cauchy_func(p, x):
+    '''
+    p[0] = A0
+    p[1] = gamma
+    p[2] = x0
+    '''
+    return p[0]*(1.0/np.pi)*(1.0/p[1])*(1.0/(1.0+((x-p[2])/p[1])**2.0))
+
+
+def residuals_func(func, p, x, y):
     return func(p, x) - y
+
 
 def mean_dim_reduction(array, delta, axis=0):
     rank = np.ndim(array)

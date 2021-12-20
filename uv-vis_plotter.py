@@ -3,7 +3,7 @@ from PyQt5.QtCore import QObject, Qt, QRectF
 from PyQt5.QtGui import QDoubleValidator, QFont, QColor, QImage, QPalette
 from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, \
                             QFileDialog, QWidget, QGridLayout, \
-                            QSplitter, QMessageBox
+                            QSplitter, QMessageBox, QSizePolicy
 
 import pyqtgraph as pg
 from pyqtgraph.exporters import ImageExporter
@@ -110,6 +110,7 @@ class MainWindow(QMainWindow):
         self.list_of_windows.append(plotter_window)
 
 
+
 class PlotterWindow(QMainWindow):
     '''
     This is the main graphical area plus the formatting controls ui.
@@ -165,6 +166,7 @@ class PlotterWindow(QMainWindow):
         self.GraphArea.setLabel('bottom', 'Wavelength (nm)', **labelstyle)
         self.GraphArea.addLegend(size=(50,50), offset=(-50, 50))
         self.GraphArea.showGrid(x=True, y=True, alpha=0.5)
+        self.GraphArea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.GrapExporter = ImageExporter(self.GraphArea)
         self.GrapExporter.parameters()['height'] = 2000
@@ -174,6 +176,7 @@ class PlotterWindow(QMainWindow):
 
         layout.addWidget(self.GraphWidget,0,0)
         layout.addWidget(self.FormatWidget,0,1)
+
 
     def setupUI(self):
         self.FormatWidget = uic.loadUi("formatting.ui")
@@ -186,15 +189,21 @@ class PlotterWindow(QMainWindow):
         self.FormatWidget.yaxis_title.setText("Absorbance")
         self.FormatWidget.curve_marker.addItems(list(symbols.keys()))
 
+
     def connectUI(self):
         self.FormatWidget.graphopts_button.clicked.connect(self.applyGraphOpts)
         self.FormatWidget.curveopts_button.clicked.connect(self.applyCurveOpts)
         self.FormatWidget.recolor_button.clicked.connect(self.reColor)
         self.FormatWidget.legend_list.currentIndexChanged.connect(self.on_current_index_changed)
         self.FormatWidget.curve_title.editingFinished.connect(self.on_editing_finished)
+        
+        self.FormatWidget.applyanalysis_button.clicked.connect(self.dataAnalyse)
+        self.FormatWidget.resetanalysis_button.clicked.connect(self.dataReset)
+
 
     def on_current_index_changed(self):
         self.FormatWidget.curve_title.setText(self.FormatWidget.legend_list.currentText())
+
 
     def on_editing_finished(self):
         self.GraphArea.legend.removeItem(self.FormatWidget.legend_list.currentText())
@@ -204,6 +213,7 @@ class PlotterWindow(QMainWindow):
         self.FormatWidget.legend_list.setItemText(idx, name)
         self.GraphArea.legend.addItem(self.list_of_curves[idx], name=self.list_of_datanames[idx])
 
+
     def closeEvent(self, event):
             close = QMessageBox.question(self,"Warning","Confirm to close the application, not saved data will be lost", QMessageBox.Yes | QMessageBox.No)
             if close == QMessageBox.Yes:
@@ -211,6 +221,7 @@ class PlotterWindow(QMainWindow):
                 event.accept()
             else:
                 event.ignore()
+
 
     def loadData(self):
         file_dialog = QFileDialog()
@@ -281,6 +292,7 @@ class PlotterWindow(QMainWindow):
             self.statusbar.showMessage('Failed to load any datafile')
             pass
 
+
     def plotAvgData(self):
         maxlen = min([len(data) for data in self.list_of_ydata])
         sum_ydata = np.zeros(maxlen)
@@ -290,7 +302,9 @@ class PlotterWindow(QMainWindow):
         xdata_o = self.list_of_xdata[0][0]
         xdata_f = self.list_of_xdata[0][-1]
         xdata = np.linspace(xdata_o, xdata_f, maxlen, endpoint=True)
-        self.GraphArea.plot(xdata, ydata, pen=pg.mkPen(color=colors['gray'],width=2.0), name='avg. data')
+        avg_plot = self.GraphArea.plot(xdata, ydata, pen=pg.mkPen(color=colors['gray'],width=2.0), name='avg. data')
+        self.list_of_curves.append(avg_plot)
+
 
     def clearGraph(self):
         # self.GraphArea.vb.removeItem(self.GraphArea.legend)
@@ -302,6 +316,7 @@ class PlotterWindow(QMainWindow):
         self.list_of_xdata = list()
         self.list_of_ydata = list()
         self.list_of_curves = list()
+
 
     def saveGraph(self):
         try:
@@ -317,6 +332,7 @@ class PlotterWindow(QMainWindow):
         else:
             self.GrapExporter.export(self.dirname+'/'+self.graph_area_title+'.png')
 
+
     def readGraphOpts(self):
         self.graph_area_title = self.FormatWidget.graph_title.text()
         self.xaxis_title = self.FormatWidget.xaxis_title.text()
@@ -327,6 +343,7 @@ class PlotterWindow(QMainWindow):
         self.yaxis_min = float(self.FormatWidget.yaxis_min.text())
         self.yaxis_max = float(self.FormatWidget.yaxis_max.text())
 
+
     def applyGraphOpts(self):
         self.readGraphOpts()
         self.plotCurves()
@@ -334,6 +351,7 @@ class PlotterWindow(QMainWindow):
         self.GraphArea.setLabel('bottom', self.xaxis_title, **labelstyle)
         self.GraphArea.setLabel('left', self.yaxis_title, **labelstyle)
         self.GraphArea.setLimits(xMin=self.xaxis_min, xMax=self.xaxis_max, yMin=self.yaxis_min, yMax=self.yaxis_max)
+
 
     def applyCurveOpts(self):
         width = self.FormatWidget.curve_thickness.value()
@@ -351,6 +369,7 @@ class PlotterWindow(QMainWindow):
 
         self.list_of_curves[idx].setData(xdata, ydata, name=self.list_of_datanames[idx])
 
+
     def reColor(self):
         width = self.FormatWidget.curve_thickness.value()
         idx = self.FormatWidget.legend_list.currentIndex()
@@ -367,6 +386,7 @@ class PlotterWindow(QMainWindow):
 
         self.list_of_curves[idx].setData(xdata, ydata, name=self.list_of_datanames[idx])
 
+
     def plotCurves(self):
         for curve in self.list_of_curves:
             idx = self.list_of_curves.index(curve)
@@ -379,6 +399,146 @@ class PlotterWindow(QMainWindow):
                 ydata = self.list_of_ydata[idx]
 
             self.list_of_curves[idx].setData(xdata, ydata, name=self.list_of_datanames[idx])
+            
+            
+    def findPeaks(self, data):
+        peaks_plots = list(np.empty((len(self.list_of_ydata))))
+        for indx in enumerate(self.list_of_ydata)[0]:
+            xdata = self.list_of_xdata[indx]
+            ydata = self.list_of_ydata[indx]
+            intensities = np.asarray(ydata)
+            indexes = peakutils_indexes(intensities, thres=1.0/max(intensities), min_dist=10.0)
+            peaks_val = [intensities[i] for i in indexes]
+            peaks_pos = [xdata[i] for i in indexes]
+            widths = peak_widths(intensities, indexes)
+            peaks_fwhm = peak_widths(intensities, indexes, rel_height=0.5)
+            #norm_intensitites = [a*b/np.amax(intensities) for (a,b) in zip(peaks,widths[0])]
+            
+            marker = list(symbols.values())[indx+1]
+            peaks_plots[indx] = self.GraphArea.plot(xdata, ydata, symbol=marker)
+            self.list_of_curves.append(peaks_plots[indx])
+    
+    
+    def fitData(self):            
+        for curve in self.list_of_curves:
+            idx = self.list_of_curves.index(curve)
+
+            xdata = self.list_of_xdata[idx]
+            if self.FormatWidget.normalize_checkbox.isChecked():
+                ydata = self.list_of_ydata[idx]*(1.0/np.amax(self.list_of_ydata[idx]))
+                              
+                self.GraphArea.setLabel('left', self.yaxis_title, units='normalized', **labelstyle)
+                
+            else:
+                ydata = self.list_of_ydata[idx]
+                
+            if self.FormatWidget.exp_checkBox.isChecked():
+                results = least_squares(exp_func,
+                                   x0=[1.0, 10, 0.1],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = exp_func(params, xdata)
+            
+            
+            elif self.FormatWidget.biexp_checkBox.isChecked():
+                results = least_squares(biexp_func,
+                                   x0=[1.0,10, 0.1, 100],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = biexp_func(params, xdata)
+            
+            
+            elif self.FormatWidget.triexp_checkBox.isChecked():
+                results = least_squares(triexp_func,
+                                   x0=[1.0, 10, 0.1, 100, 0.01, 1000],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = triexp_func(params, xdata)
+            
+            
+            elif self.FormatWidget.power_checkBox.isChecked():
+                results = least_squares(power_func,
+                                   x0=[1.0, 0.5, 0.1],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = power_func(params, xdata)
+            
+            
+            elif self.FormatWidget.gaussian_checkBox.isChecked():
+                results = least_squares(gaussian_func,
+                                   x0=[1.0, 0.5, 0.0],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = gaussian_func(params, xdata)
+            
+            elif self.FormatWidget.cauchy_checkBox.isChecked():
+                results = least_squares(cauchy_func,
+                                   x0=[1.0, 0.5, 0.0],
+                                   bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
+                                   args=(xdata, ydata),
+                                   method='trf',
+                                   tr_solver='lsmr',
+                                   loss='soft_l1',
+                                   jac='3-point',
+                                   x_scale='jac',
+                                   max_nfev=10000)
+                params = results.x
+                fitted_data = cauchy_func(params, xdata)
+            
+            else:
+                pass
+                
+                
+        
+    
+    def dataReset(self):
+        pass
+        
+            
+    def dataAnalyse(self):
+        if self.FormatWidget.findpeaks_checkBox.isChecked():
+            self.findPeaks(self)
+            
+        if self.FormatWidget.fitting_checkBox.isChecked():
+            self.fitData(self)
+        
+
+        
 
 if __name__=='__main__':
 
