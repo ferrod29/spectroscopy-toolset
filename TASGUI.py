@@ -277,7 +277,7 @@ class SurfPlotWidget(QWidget):
         self.imageViewWidget = pg.ImageView(parent=self.plotWidget, view=self.plotItem, imageItem=self.imageItem)
         self.imageViewWidget.getView().invertY(False)
         self.imageViewWidget.setColorMap(BuRd_map)
-        self.imageViewWidget.autoLevels()
+        #self.imageViewWidget.autoLevels()
         self.imageViewWidget.ui.menuBtn.hide()
         self.imageViewWidget.ui.roiBtn.hide()
 

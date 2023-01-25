@@ -658,8 +658,8 @@ class DataControlWidget(QObject):
             self.parent.parent.traces_widget.ccount += 1
 
             dataname = self.parent.controls_widget.dataname_input.text()
-            self.parent.parent.traces_widget.kinetics.setLabel('left', '<math>&Delta;A', units='normalized', **labelstyle)
-            self.parent.parent.traces_widget.spectral.setLabel('left', '<math>&Delta;A', units='normalized', **labelstyle)
+            self.parent.parent.traces_widget.kinetics.setLabel('left', '<math>&Delta;A</math>', units='normalized', **labelstyle)
+            self.parent.parent.traces_widget.spectral.setLabel('left', '<math>&Delta;A</math>', units='normalized', **labelstyle)
             self.parent.parent.traces_widget.kinetics.setTitle('<math>&lambda; = {} nm</math>'.format(round(self.y,2)))
             self.parent.parent.traces_widget.spectral.setTitle('<math>&Delta;t = {} ps<math>'.format(round(self.x,2)))
 

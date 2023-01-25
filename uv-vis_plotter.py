@@ -1,9 +1,9 @@
 from PyQt5 import uic
-from PyQt5.QtCore import QObject, Qt, QRectF
-from PyQt5.QtGui import QDoubleValidator, QFont, QColor, QImage, QPalette
-from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, \
-                            QFileDialog, QWidget, QGridLayout, \
-                            QSplitter, QMessageBox, QSizePolicy
+from PyQt5.Qt import QObject, Qt, QRectF, \
+                    QDoubleValidator, QFont, QColor, QImage, QPalette, \
+                    QMainWindow, QAction, QApplication, \
+                    QFileDialog, QWidget, QGridLayout, \
+                    QSplitter, QMessageBox, QSizePolicy
 
 import pyqtgraph as pg
 from pyqtgraph.exporters import ImageExporter
@@ -58,40 +58,44 @@ symbols = {"None":None, u"\u2022":"o", u"\u002B":"+", u"\u2266":"d", u"\u25B2":"
 labelstyle = {'color': 'k', 'font-size': '12pt'}
 
 
-class MainWindow(QMainWindow):
-    '''
-    Main application window, from this different instances of UV-Vis Abs.
-    Spectra Plotter can be open.
-    It maight later hold a TabWidget to analyse or compare data from different
-    Plotter instances
-    '''
-    def __init__(self):
-        super(MainWindow, self).__init__()
-        self.setWindowTitle('UV-Vis Plots Manager')
-        self.setGeometry(20,20,1800,1200)
 
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        layout = QGridLayout(self.central_widget)
-        self.central_widget.adjustSize()
+class DataAnalysis(QObject):
+    def __init__(self, parent=None):
+        super(DataAnalysis, self).__init__(parent)
+        self.parent = parent
+        self.setupUI()
+        self.connectUI()
+        
+    def setupUI(self):
+        self.ui = QMainWindow()
+        self.ui.setWindowTitle('Data Plotter Manager')
 
-        self.exitAct = QAction('Exit', self)
-        self.exitAct.setShortcut('Ctrl+Q')
-        self.exitAct.setStatusTip('Exit application')
-        self.exitAct.triggered.connect(self.close)
+        central_widget = QWidget()
+        layout = QGridLayout(central_widget)
+        central_widget.adjustSize()
+        self.ui.setCentralWidget(central_widget)
 
-        self.newGraphAct = QAction('New Plotter', self)
-        self.newGraphAct.setShortcut('Ctrl+N')
-        self.newGraphAct.setStatusTip("Creates a new plotter window")
-        self.newGraphAct.triggered.connect(self.plotterWindow)
+        self.ui.exit_action = QAction('Exit', self)
+        self.ui.exit_action.setShortcut('Ctrl+Q')
+        self.ui.exit_action.setStatusTip('Exit application')
 
-        self.menubar = self.menuBar()
-        self.fileMenu = self.menubar.addMenu('&Menu')
-        self.fileMenu.addAction(self.exitAct)
-        self.fileMenu.addAction(self.newGraphAct)
+        self.ui.new_action = QAction('New Plotter', self)
+        self.ui.new_action.setShortcut('Ctrl+N')
+        self.ui.new_action.setStatusTip("Creates a new plotter window")
+
+        self.ui.menu_bar = self.ui.menuBar()
+        self.ui.file_menu = self.ui.menu_bar.addMenu('&Menu')
+        self.ui.file_menu.addAction(self.ui.exit_action)
+        self.ui.file_menu.addAction(self.ui.new_action)
 
         self.list_of_windows = list()
-
+                
+        
+    def connectUI(self):
+        self.ui.exit_action.triggered.connect(self.ui.close)
+        self.ui.new_action.triggered.connect(self.newPlotter)
+        
+        
     def closeEvent(self, event):
         '''
         This function will call close of every plotter instance so data could be
@@ -101,117 +105,120 @@ class MainWindow(QMainWindow):
             window.close()
         event.accept()
 
-    def plotterWindow(self):
+
+    def newPlotter(self):
         '''
         Making a list of initiated plotter windows
         '''
-        plotter_window = PlotterWindow(self)
-        plotter_window.showMaximized()
+        plotter_window = DataPlotter(self)
+        plotter_window.ui.showMaximized()
         self.list_of_windows.append(plotter_window)
-
-
-
-class PlotterWindow(QMainWindow):
+        
+        
+    
+class DataPlotter(QObject):
     '''
     This is the main graphical area plus the formatting controls ui.
     '''
     def __init__(self, parent=None):
-        super(PlotterWindow, self).__init__(parent)
+        super(DataPlotter, self).__init__(parent)
         self.parent = parent
-        self.setWindowTitle('UV-Vis Abs. Spectra Plotter')
-        self.setGeometry(20,20,1800,1200)
-
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        layout = QGridLayout(self.central_widget)
-        self.central_widget.adjustSize()
-
-        self.statusbar = self.statusBar()
-
-        self.exitAct = QAction('Exit', self)
-        self.exitAct.setShortcut('Ctrl+Q')
-        self.exitAct.setStatusTip('Exit application')
-        self.exitAct.triggered.connect(self.close)
-
-        self.loadDataAct = QAction('Load Data', self)
-        self.loadDataAct.setShortcut('Ctrl+D')
-        self.loadDataAct.setStatusTip('Load data file')
-        self.loadDataAct.triggered.connect(self.loadData)
-
-        self.clearGraphAct = QAction('Clear', self)
-        self.clearGraphAct.setShortcut('Ctrl+K')
-        self.clearGraphAct.setStatusTip('Clear Plot')
-        self.clearGraphAct.triggered.connect(self.clearGraph)
-
-        self.saveGraphAct = QAction('Save', self)
-        self.saveGraphAct.setShortcut('Ctrl+S')
-        self.saveGraphAct.setStatusTip('Save Plot')
-        self.saveGraphAct.triggered.connect(self.saveGraph)
-
-        self.plotAvgAct = QAction('Avg. Data', self)
-        self.plotAvgAct.setStatusTip('Plot Avg. Data')
-        self.plotAvgAct.triggered.connect(self.plotAvgData)
-
-        self.toolbar = self.addToolBar('toolbar')
-        self.toolbar.addAction(self.loadDataAct)
-        self.toolbar.addAction(self.clearGraphAct)
-        self.toolbar.addAction(self.saveGraphAct)
-        self.toolbar.addAction(self.plotAvgAct)
-
-        self.GraphWidget = pg.PlotWidget()
-        self.GraphArea = self.GraphWidget.getPlotItem()
-        self.GraphArea.getAxis("left").tickFont = QFont("Helvetica [Cronyx]", 14)
-        self.GraphArea.getAxis("bottom").tickFont = QFont("Helvetica [Cronyx]", 14)
-        self.GraphArea.setLabel('left', 'Absorbance', **labelstyle)
-        self.GraphArea.setLabel('bottom', 'Wavelength (nm)', **labelstyle)
-        self.GraphArea.addLegend(size=(50,50), offset=(-50, 50))
-        self.GraphArea.showGrid(x=True, y=True, alpha=0.5)
-        self.GraphArea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        self.GrapExporter = ImageExporter(self.GraphArea)
-        self.GrapExporter.parameters()['height'] = 2000
-
         self.setupUI()
         self.connectUI()
-
-        layout.addWidget(self.GraphWidget,0,0)
-        layout.addWidget(self.FormatWidget,0,1)
-
-
+        
     def setupUI(self):
-        self.FormatWidget = uic.loadUi("formatting.ui")
-        self.FormatWidget.xaxis_min.setValidator(QDoubleValidator(-999.999,999.999,3))
-        self.FormatWidget.xaxis_max.setValidator(QDoubleValidator(-999.999,999.999,3))
-        self.FormatWidget.yaxis_min.setValidator(QDoubleValidator(-999.999,999.999,3))
-        self.FormatWidget.yaxis_max.setValidator(QDoubleValidator(-999.999,999.999,3))
+        self.ui = QMainWindow()
+        self.ui.setWindowTitle('Data Plotter')
 
-        self.FormatWidget.xaxis_title.setText("Wavelength (nm)")
-        self.FormatWidget.yaxis_title.setText("Absorbance")
-        self.FormatWidget.curve_marker.addItems(list(symbols.keys()))
+        central_widget = QWidget()
+        layout = QGridLayout(central_widget)
+        central_widget.adjustSize()
+        self.ui.setCentralWidget(central_widget)
+
+        self.ui.status_bar = self.ui.statusBar()
+
+        self.ui.exit_action = QAction('Exit', self)
+        self.ui.exit_action.setShortcut('Ctrl+Q')
+        self.ui.exit_action.setStatusTip('Exit application')
+
+        self.ui.load_action = QAction('Load Data', self)
+        self.ui.load_action.setShortcut('Ctrl+D')
+        self.ui.load_action.setStatusTip('Load data file')
+
+        self.ui.clear_action = QAction('Clear', self)
+        self.ui.clear_action.setShortcut('Ctrl+K')
+        self.ui.clear_action.setStatusTip('Clear Plot')
+
+        self.ui.save_action = QAction('Save', self)
+        self.ui.save_action.setShortcut('Ctrl+S')
+        self.ui.save_action.setStatusTip('Save Plot')
+
+        self.ui.plotAvg_action = QAction('Avg. Data', self)
+        self.ui.plotAvg_action.setStatusTip('Plot Avg. Data')
+
+        self.ui.toolbar = self.ui.addToolBar('toolbar')
+        self.ui.toolbar.addAction(self.ui.load_action)
+        self.ui.toolbar.addAction(self.ui.clear_action)
+        self.ui.toolbar.addAction(self.ui.save_action)
+        self.ui.toolbar.addAction(self.ui.plotAvg_action)
+
+        self.ui.GraphWidget = pg.PlotWidget()
+        self.ui.GraphArea = self.ui.GraphWidget.getPlotItem()
+        self.ui.GraphArea.getAxis("left").tickFont = QFont("Helvetica [Cronyx]", 14)
+        self.ui.GraphArea.getAxis("bottom").tickFont = QFont("Helvetica [Cronyx]", 14)
+        self.ui.GraphArea.setLabel('left', 'Absorbance', **labelstyle)
+        self.ui.GraphArea.setLabel('bottom', 'Wavelength (nm)', **labelstyle)
+        self.ui.GraphArea.addLegend(size=(50,50), offset=(-50, 50))
+        self.ui.GraphArea.showGrid(x=True, y=True, alpha=0.5)
+        self.ui.GraphWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.ui.GraphArea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        self.ui.control_box = uic.loadUi("formatting.ui")
+        self.ui.control_box.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.MinimumExpanding)
+        self.ui.control_box.xaxis_min.setValidator(QDoubleValidator(-999.999,999.999,3))
+        self.ui.control_box.xaxis_max.setValidator(QDoubleValidator(-999.999,999.999,3))
+        self.ui.control_box.yaxis_min.setValidator(QDoubleValidator(-999.999,999.999,3))
+        self.ui.control_box.yaxis_max.setValidator(QDoubleValidator(-999.999,999.999,3))
+
+        # self.ui.control_box.xaxis_title.setText("Wavelength (nm)")
+        # self.ui.control_box.yaxis_title.setText("Absorbance")
+        self.ui.control_box.curve_marker.addItems(list(symbols.keys()))
+        
+        layout.addWidget(self.ui.GraphWidget,0,0)
+        layout.addWidget(self.ui.control_box,0,1)
+        
+        self.GrapExporter = ImageExporter(self.ui.GraphArea)
+        self.GrapExporter.parameters()['height'] = 2000
 
 
     def connectUI(self):
-        self.FormatWidget.graphopts_button.clicked.connect(self.applyGraphOpts)
-        self.FormatWidget.curveopts_button.clicked.connect(self.applyCurveOpts)
-        self.FormatWidget.recolor_button.clicked.connect(self.reColor)
-        self.FormatWidget.legend_list.currentIndexChanged.connect(self.on_current_index_changed)
-        self.FormatWidget.curve_title.editingFinished.connect(self.on_editing_finished)
+        self.ui.exit_action.triggered.connect(self.ui.close)
+        self.ui.load_action.triggered.connect(self.loadData)
+        self.ui.save_action.triggered.connect(self.saveGraph)
+        self.ui.clear_action.triggered.connect(self.clearGraph)
+        self.ui.plotAvg_action.triggered.connect(self.plotAvgData)
         
-        self.FormatWidget.applyanalysis_button.clicked.connect(self.dataAnalyse)
-        self.FormatWidget.resetanalysis_button.clicked.connect(self.dataReset)
+        self.ui.control_box.applyOpts_button.clicked.connect(self.applyGraphOpts)
+        self.ui.control_box.curveOpts_button.clicked.connect(self.applyCurveOpts)
+        self.ui.control_box.recolor_button.clicked.connect(self.reColor)
+        self.ui.control_box.legend_list.currentIndexChanged.connect(self.on_current_index_changed)
+        self.ui.control_box.curve_title.editingFinished.connect(self.on_editing_finished)
+        
+        self.ui.control_box.calcAnalysis_button.clicked.connect(self.dataAnalyse)
+        self.ui.control_box.clearAnalysis_button.clicked.connect(self.dataReset)
 
 
     def on_current_index_changed(self):
-        self.FormatWidget.curve_title.setText(self.FormatWidget.legend_list.currentText())
+        self.ui.control_box.curve_title.setText(self.ui.control_box.legend_list.currentText())
 
 
     def on_editing_finished(self):
-        self.GraphArea.legend.removeItem(self.FormatWidget.legend_list.currentText())
-        idx = self.FormatWidget.legend_list.currentIndex()
-        name = self.FormatWidget.curve_title.text()
+        self.ui.GraphArea.legend.removeItem(self.ui.control_box.legend_list.currentText())
+        idx = self.ui.control_box.legend_list.currentIndex()
+        name = self.ui.control_box.curve_title.text()
         self.list_of_datanames[idx] = name
-        self.FormatWidget.legend_list.setItemText(idx, name)
-        self.GraphArea.legend.addItem(self.list_of_curves[idx], name=self.list_of_datanames[idx])
+        self.ui.control_box.legend_list.setItemText(idx, name)
+        self.ui.GraphArea.legend.addItem(self.list_of_curves[idx], name=self.list_of_datanames[idx])
 
 
     def closeEvent(self, event):
@@ -240,10 +247,15 @@ class PlotterWindow(QMainWindow):
                 self.list_of_curves = list()
 
             for file in files_list:
-                try:
-                    data = pd.read_csv(file, header=None, delim_whitespace=True, dtype=np.float64, error_bad_lines=False)
-                except:
-                    data = pd.read_csv(file, header=None, delim_whitespace=True, decimal=',', skiprows=2, dtype=np.float64, error_bad_lines=False)
+                basename = os.path.basename(file).split('.')
+                ext = basename[1]
+                if ext =='csv':
+                    data = pd.read_csv(file, header=None, dtype=np.float64,  skiprows=1, error_bad_lines=False)
+                else:
+                    try:
+                        data = pd.read_csv(file, header=None, delim_whitespace=True, dtype=np.float64, error_bad_lines=False)
+                    except:
+                        data = pd.read_csv(file, header=None, delim_whitespace=True, decimal=',', skiprows=1, dtype=np.float64, error_bad_lines=False)
 
                 xdata = data.iloc[:,0].to_numpy()
                 ydata = data.iloc[:,1].to_numpy()
@@ -255,7 +267,7 @@ class PlotterWindow(QMainWindow):
                 width = 2.0
                 pen=pg.mkPen(color=colors[idx],width=width)
 
-                curve = self.GraphArea.plot(xdata, ydata, pen=pen, name=dataname)
+                curve = self.ui.GraphArea.plot(xdata, ydata, pen=pen, name=dataname)
 
                 self.list_of_datanames.append(dataname)
                 self.list_of_xdata.append(xdata)
@@ -271,7 +283,7 @@ class PlotterWindow(QMainWindow):
                 #     # sum_xdata = np.add(sum_xdata, xdata, dtype=np.float64)
                 #     self.sum_ydata = np.add(self.sum_ydata, ydata, dtype=np.float64)
 
-                self.FormatWidget.legend_list.addItem(dataname)
+                self.ui.control_box.legend_list.addItem(dataname)
 
             # self.mean_xdata = 1.0/len(self.list_of_curves)*sum_xdata
 
@@ -280,16 +292,16 @@ class PlotterWindow(QMainWindow):
             ymin = round(np.amin(ydata),3)
             ymax = round(np.amax(ydata),3)
 
-            self.FormatWidget.xaxis_min.setProperty("text",str(xmin))
-            self.FormatWidget.xaxis_max.setProperty("text",str(xmax))
-            self.FormatWidget.yaxis_min.setProperty("text",str(ymin))
-            self.FormatWidget.yaxis_max.setProperty("text",str(ymax))
-            self.FormatWidget.graph_title.setText(self.graph_area_title)
+            self.ui.control_box.xaxis_min.setProperty("text",str(xmin))
+            self.ui.control_box.xaxis_max.setProperty("text",str(xmax))
+            self.ui.control_box.yaxis_min.setProperty("text",str(ymin))
+            self.ui.control_box.yaxis_max.setProperty("text",str(ymax))
+            self.ui.control_box.graph_title.setText(self.graph_area_title)
 
-            self.statusbar.showMessage('Succeeded to load datafiles')
+            self.status_bar.showMessage('Succeeded to load datafiles')
 
         else:
-            self.statusbar.showMessage('Failed to load any datafile')
+            self.status_bar.showMessage('Failed to load any datafile')
             pass
 
 
@@ -302,16 +314,16 @@ class PlotterWindow(QMainWindow):
         xdata_o = self.list_of_xdata[0][0]
         xdata_f = self.list_of_xdata[0][-1]
         xdata = np.linspace(xdata_o, xdata_f, maxlen, endpoint=True)
-        avg_plot = self.GraphArea.plot(xdata, ydata, pen=pg.mkPen(color=colors['gray'],width=2.0), name='avg. data')
+        avg_plot = self.ui.GraphArea.plot(xdata, ydata, pen=pg.mkPen(color=colors['gray'],width=2.0), name='avg. data')
         self.list_of_curves.append(avg_plot)
 
 
     def clearGraph(self):
-        # self.GraphArea.vb.removeItem(self.GraphArea.legend)
+        # self.ui.GraphArea.vb.removeItem(self.ui.GraphArea.legend)
 
-        [self.GraphArea.legend.removeItem(self.FormatWidget.legend_list.itemText(idx)) for idx in range(len(self.list_of_curves))]
-        self.FormatWidget.legend_list.clear()
-        self.GraphArea.clear()
+        [self.ui.GraphArea.legend.removeItem(self.ui.control_box.legend_list.itemText(idx)) for idx in range(len(self.list_of_curves))]
+        self.ui.control_box.legend_list.clear()
+        self.ui.GraphArea.clear()
         self.list_of_datanames = list()
         self.list_of_xdata = list()
         self.list_of_ydata = list()
@@ -334,35 +346,35 @@ class PlotterWindow(QMainWindow):
 
 
     def readGraphOpts(self):
-        self.graph_area_title = self.FormatWidget.graph_title.text()
-        self.xaxis_title = self.FormatWidget.xaxis_title.text()
-        self.yaxis_title = self.FormatWidget.yaxis_title.text()
+        self.graph_area_title = self.ui.control_box.graph_title.text()
+        self.xaxis_title = self.ui.control_box.xaxis_title.text()
+        self.yaxis_title = self.ui.control_box.yaxis_title.text()
 
-        self.xaxis_min = float(self.FormatWidget.xaxis_min.text())
-        self.xaxis_max = float(self.FormatWidget.xaxis_max.text())
-        self.yaxis_min = float(self.FormatWidget.yaxis_min.text())
-        self.yaxis_max = float(self.FormatWidget.yaxis_max.text())
+        self.xaxis_min = float(self.ui.control_box.xaxis_min.text())
+        self.xaxis_max = float(self.ui.control_box.xaxis_max.text())
+        self.yaxis_min = float(self.ui.control_box.yaxis_min.text())
+        self.yaxis_max = float(self.ui.control_box.yaxis_max.text())
 
 
     def applyGraphOpts(self):
         self.readGraphOpts()
         self.plotCurves()
-        self.GraphArea.setTitle(self.graph_area_title)
-        self.GraphArea.setLabel('bottom', self.xaxis_title, **labelstyle)
-        self.GraphArea.setLabel('left', self.yaxis_title, **labelstyle)
-        self.GraphArea.setLimits(xMin=self.xaxis_min, xMax=self.xaxis_max, yMin=self.yaxis_min, yMax=self.yaxis_max)
+        self.ui.GraphArea.setTitle(self.graph_area_title)
+        self.ui.GraphArea.setLabel('bottom', self.xaxis_title, **labelstyle)
+        self.ui.GraphArea.setLabel('left', self.yaxis_title, **labelstyle)
+        self.ui.GraphArea.setLimits(xMin=self.xaxis_min, xMax=self.xaxis_max, yMin=self.yaxis_min, yMax=self.yaxis_max)
 
 
     def applyCurveOpts(self):
-        width = self.FormatWidget.curve_thickness.value()
-        idx = self.FormatWidget.legend_list.currentIndex()
+        width = self.ui.control_box.curve_thickness.value()
+        idx = self.ui.control_box.legend_list.currentIndex()
         pen = pg.mkPen(color=colors[idx], width=width)
-        marker = symbols[self.FormatWidget.curve_marker.currentText()]
+        marker = symbols[self.ui.control_box.curve_marker.currentText()]
         self.list_of_curves[idx].setPen(pen)
         self.list_of_curves[idx].setSymbol(marker)
 
         xdata = self.list_of_xdata[idx]
-        if self.FormatWidget.normalize_checkbox.isChecked():
+        if self.ui.control_box.normalize_checkbox.isChecked():
             ydata = self.list_of_ydata[idx]*(1.0/np.amax(self.list_of_ydata[idx]))
         else:
             ydata = self.list_of_ydata[idx]
@@ -371,15 +383,15 @@ class PlotterWindow(QMainWindow):
 
 
     def reColor(self):
-        width = self.FormatWidget.curve_thickness.value()
-        idx = self.FormatWidget.legend_list.currentIndex()
+        width = self.ui.control_box.curve_thickness.value()
+        idx = self.ui.control_box.legend_list.currentIndex()
         new_color = random.choice(list(colors.values()))
         #colors[np.random.randint(len(self.list_of_curves)+1)]
         pen = pg.mkPen(color=new_color, width=width)
         self.list_of_curves[idx].setPen(pen)
 
         xdata = self.list_of_xdata[idx]
-        if self.FormatWidget.normalize_checkbox.isChecked():
+        if self.ui.control_box.normalize_checkbox.isChecked():
             ydata = self.list_of_ydata[idx]*(1.0/np.amax(self.list_of_ydata[idx]))
         else:
             ydata = self.list_of_ydata[idx]
@@ -392,9 +404,9 @@ class PlotterWindow(QMainWindow):
             idx = self.list_of_curves.index(curve)
 
             xdata = self.list_of_xdata[idx]
-            if self.FormatWidget.normalize_checkbox.isChecked():
+            if self.ui.control_box.normalize_checkbox.isChecked():
                 ydata = self.list_of_ydata[idx]*(1.0/np.amax(self.list_of_ydata[idx]))
-                self.GraphArea.setLabel('left', self.yaxis_title, units='normalized', **labelstyle)
+                self.ui.GraphArea.setLabel('left', self.yaxis_title, units='normalized', **labelstyle)
             else:
                 ydata = self.list_of_ydata[idx]
 
@@ -415,7 +427,7 @@ class PlotterWindow(QMainWindow):
             #norm_intensitites = [a*b/np.amax(intensities) for (a,b) in zip(peaks,widths[0])]
             
             marker = list(symbols.values())[indx+1]
-            peaks_plots[indx] = self.GraphArea.plot(xdata, ydata, symbol=marker)
+            peaks_plots[indx] = self.ui.GraphArea.plot(xdata, ydata, symbol=marker)
             self.list_of_curves.append(peaks_plots[indx])
     
     
@@ -424,15 +436,15 @@ class PlotterWindow(QMainWindow):
             idx = self.list_of_curves.index(curve)
 
             xdata = self.list_of_xdata[idx]
-            if self.FormatWidget.normalize_checkbox.isChecked():
+            if self.ui.control_box.normalize_checkbox.isChecked():
                 ydata = self.list_of_ydata[idx]*(1.0/np.amax(self.list_of_ydata[idx]))
                               
-                self.GraphArea.setLabel('left', self.yaxis_title, units='normalized', **labelstyle)
+                self.ui.GraphArea.setLabel('left', self.yaxis_title, units='norm.', **labelstyle)
                 
             else:
                 ydata = self.list_of_ydata[idx]
                 
-            if self.FormatWidget.exp_checkBox.isChecked():
+            if self.ui.control_box.exp_button.isChecked():
                 results = least_squares(exp_func,
                                    x0=[1.0, 10, 0.1],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -447,7 +459,7 @@ class PlotterWindow(QMainWindow):
                 fitted_data = exp_func(params, xdata)
             
             
-            elif self.FormatWidget.biexp_checkBox.isChecked():
+            elif self.ui.control_box.biexp_button.isChecked():
                 results = least_squares(biexp_func,
                                    x0=[1.0,10, 0.1, 100],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -462,7 +474,7 @@ class PlotterWindow(QMainWindow):
                 fitted_data = biexp_func(params, xdata)
             
             
-            elif self.FormatWidget.triexp_checkBox.isChecked():
+            elif self.ui.control_box.triexp_button.isChecked():
                 results = least_squares(triexp_func,
                                    x0=[1.0, 10, 0.1, 100, 0.01, 1000],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -477,7 +489,7 @@ class PlotterWindow(QMainWindow):
                 fitted_data = triexp_func(params, xdata)
             
             
-            elif self.FormatWidget.power_checkBox.isChecked():
+            elif self.ui.control_box.power_button.isChecked():
                 results = least_squares(power_func,
                                    x0=[1.0, 0.5, 0.1],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -492,7 +504,7 @@ class PlotterWindow(QMainWindow):
                 fitted_data = power_func(params, xdata)
             
             
-            elif self.FormatWidget.gaussian_checkBox.isChecked():
+            elif self.ui.control_box.gaussian_button.isChecked():
                 results = least_squares(gaussian_func,
                                    x0=[1.0, 0.5, 0.0],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -506,7 +518,7 @@ class PlotterWindow(QMainWindow):
                 params = results.x
                 fitted_data = gaussian_func(params, xdata)
             
-            elif self.FormatWidget.cauchy_checkBox.isChecked():
+            elif self.ui.control_box.cauchy_button.isChecked():
                 results = least_squares(cauchy_func,
                                    x0=[1.0, 0.5, 0.0],
                                    bounds=([-np.inf, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
@@ -531,10 +543,10 @@ class PlotterWindow(QMainWindow):
         
             
     def dataAnalyse(self):
-        if self.FormatWidget.findpeaks_checkBox.isChecked():
+        if self.ui.control_box.findpeaks_checkBox.isChecked():
             self.findPeaks(self)
             
-        if self.FormatWidget.fitting_checkBox.isChecked():
+        if self.ui.control_box.fitting_checkBox.isChecked():
             self.fitData(self)
         
 
@@ -548,7 +560,7 @@ if __name__=='__main__':
     screen_resolution = app.desktop().screenGeometry()
     width, height = screen_resolution.width(), screen_resolution.height()
 
-    mainwindow = MainWindow()
-    mainwindow.showMaximized()
+    mainwindow = DataAnalysis()
+    mainwindow.ui.showMaximized()
 
     sys.exit(app.exec_())
