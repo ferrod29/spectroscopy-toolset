@@ -43,7 +43,7 @@ spectro-uvvis = "spectroscopy_toolset.gui.uvvis_plotter:main"
 spectro-ta = "spectroscopy_toolset.gui.ta_inspector:main"
 
 [project.urls]
-Repository = "https://github.com/ferrod29/SpectroscopyToolset"
+Repository = "https://github.com/ferrod29/spectroscopy-toolset"
 
 [tool.setuptools.packages.find]
 where = ["src"]

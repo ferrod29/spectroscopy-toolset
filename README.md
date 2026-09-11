@@ -1,6 +1,6 @@
 # Spectroscopy Toolset
 
-[![tests](https://github.com/ferrod29/SpectroscopyToolset/actions/workflows/tests.yml/badge.svg)](https://github.com/ferrod29/SpectroscopyToolset/actions/workflows/tests.yml)
+[![tests](https://github.com/ferrod29/spectroscopy-toolset/actions/workflows/tests.yml/badge.svg)](https://github.com/ferrod29/spectroscopy-toolset/actions/workflows/tests.yml)
 
 Python tools for inspecting and analysing **UV-vis absorption** spectra and
 **transient-absorption (TA, pump-probe)** data. The package has three parts:
@@ -60,8 +60,8 @@ Python tools for inspecting and analysing **UV-vis absorption** spectra and
 Requires Python ≥ 3.9.
 
 ```bash
-git clone https://github.com/ferrod29/SpectroscopyToolset.git
-cd SpectroscopyToolset
+git clone https://github.com/ferrod29/spectroscopy-toolset.git
+cd spectroscopy-toolset
 pip install -e ".[gui]"      # library + CLI + desktop interfaces
 # pip install -e .           # library + CLI only (no Qt)
 # pip install -e ".[gui,dev]"  # + pytest and ruff for development
