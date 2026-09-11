@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectroscopy-toolset"
+version = "0.2.0"
+description = "Inspection and analysis of steady-state UV-vis absorption and transient-absorption (pump-probe) spectroscopy data"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "ferrod29" }]
+keywords = [
+    "spectroscopy",
+    "UV-vis",
+    "absorption",
+    "transient absorption",
+    "pump-probe",
+    "global analysis",
+    "Tauc plot",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.22",
+    "scipy>=1.8",
+    "pandas>=1.4",
+    "matplotlib>=3.5",
+]
+
+[project.optional-dependencies]
+gui = ["PyQt5>=5.15", "pyqtgraph>=0.13"]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.scripts]
+spectro = "spectroscopy_toolset.cli:main"
+
+[project.gui-scripts]
+spectro-uvvis = "spectroscopy_toolset.gui.uvvis_plotter:main"
+spectro-ta = "spectroscopy_toolset.gui.ta_inspector:main"
+
+[project.urls]
+Repository = "https://github.com/ferrod29/SpectroscopyToolset"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"spectroscopy_toolset.gui" = ["ui/*.ui"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+filterwarnings = ["ignore::DeprecationWarning:pyqtgraph.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/spectroscopy_toolset/gui/*.py" = ["N802"]
