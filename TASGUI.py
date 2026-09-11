@@ -3,7 +3,7 @@ from PyQt5.QtCore import QObject, Qt, QRectF
 from PyQt5.QtGui import QDoubleValidator, QFont, QColor, QImage, QPalette
 from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, \
                             QFileDialog, QWidget, QGridLayout, \
-                            QSplitter, QMessageBox
+                            QSplitter, QMessageBox, QSizePolicy
 
 from pyqtgraph.exporters import ImageExporter
 
@@ -271,34 +271,71 @@ class SurfPlotWidget(QWidget):
         self.plotItem.setLabel('left',  'Wavelength', units='nm', **labelstyle)
         self.plotItem.setLabel('bottom', 'Time', units='ps', **labelstyle)
 
+        #self.imageItem = pg.ImageItem()
+        #self.imageItem.setLookupTable(BuRd_lut, update=True)
+
+        self.glayout = pg.GraphicsLayoutWidget()
+        self.glayout.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+
+        self.imageViewWidget = self.glayout.addPlot(row=0,col=0)
+        self.imageViewWidget.enableAutoRange(enable=True)
+        self.imageViewWidget.setDownsampling(auto=True)
+        self.imageViewWidget.invertY(False)
+
+        
         self.imageItem = pg.ImageItem()
-        self.imageItem.setLookupTable(BuRd_lut, update=True)
+        self.imageItem.setAutoDownsample(True)
+            
+        # Histogram
+        self.histogramWidget = pg.HistogramLUTItem(fillHistogram=True)
+        self.histogramWidget.autoHistogramRange()
+        self.histogramWidget.gradient.loadPreset('inferno')  
+        #self.histogramWidget.gradient.setColorMode('rgb')      
+        # self.histogramWidget.gradient.setColorMap(BuRd_map)
 
-        self.imageViewWidget = pg.ImageView(parent=self.plotWidget, view=self.plotItem, imageItem=self.imageItem)
-        self.imageViewWidget.getView().invertY(False)
-        self.imageViewWidget.setColorMap(BuRd_map)
+        lut = self.histogramWidget.gradient.getLookupTable(18192, alpha=None)
+        self.imageItem.setLookupTable(lut, update=True)        
+        self.histogramWidget.setImageItem(self.imageItem)
+        
+        self.viewBox = self.plotItem.vb
+        self.viewBox.addItem(self.imageItem) 
+        
+        #self.imageViewWidget = pg.ImageView(parent=self.plotWidget, view=self.plotItem, imageItem=self.imageItem)
+        #self.imageViewWidget.getView().invertY(False)
+        #self.imageViewWidget.setColorMap(BuRd_map)
         #self.imageViewWidget.autoLevels()
-        self.imageViewWidget.ui.menuBtn.hide()
-        self.imageViewWidget.ui.roiBtn.hide()
+        #self.imageViewWidget.ui.menuBtn.hide()
+        #self.imageViewWidget.ui.roiBtn.hide()
 
-        self.histogramWidget = self.imageViewWidget.getHistogramWidget()
-        self.histogramWidget.setImageItem(self.imageViewWidget.getImageItem())
-        self.histogramWidget.setBackground(None)
+        #self.histogramWidget = self.imageViewWidget.getHistogramWidget()
+        #self.histogramWidget.setImageItem(self.imageViewWidget.getImageItem())
+        #self.histogramWidget.setBackground(None)
 
         #cross hair
         dashedblue = pg.mkPen(color='b', width=1, style=Qt.DashLine)
         self.vLine = pg.InfiniteLine(angle=90, pen=dashedblue, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, pen=dashedblue, movable=False)
 
-        self.plotItem.addItem(self.imageItem)
+        #self.plotItem.addItem(self.imageItem)
         self.plotItem.addItem(self.vLine, ignoreBounds=True)
         self.plotItem.addItem(self.hLine, ignoreBounds=True)
 
         self.exporter = ImageExporter(self.plotItem)
         self.exporter.parameters()['height'] = 2400
 
-        layout = QGridLayout(self)
-        layout.addWidget(self.imageViewWidget)
+        #layout = QGridLayout(self)
+        #layout.addWidget(self.imageViewWidget)
+        #self.adjustSize()
+        #self.parent.windows_list.append(self)
+
+        
+        # Graphics Layout
+        layout = QGridLayout()
+        self.glayout.addItem(self.histogramWidget, 0, 2)
+        layout.addWidget(self.glayout, 0, 0)
+        
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setLayout(layout)       
         self.adjustSize()
         self.parent.windows_list.append(self)
 
