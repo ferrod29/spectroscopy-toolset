@@ -129,6 +129,7 @@ windows otherwise. Run `spectro <command> -h` for all options.
 | `spectro ta FILES... [--kinetics NM...] [--fit N] [--spectra PS...]` | TA map, kinetics (fitted), spectra |
 | `spectro ta-global FILES... --n-exp N [--step] [--artifact 3] [--eads]` | global analysis (DAS/EADS) |
 | `spectro ta-export FILES... --xyz OUT \| --matrix OUT` | export processed TA data |
+| `spectro wl-calibrate --with-filter F... --without-filter F... --reference REF --save CAL.json` | HARBOR pixel → wavelength calibration |
 
 The TA commands share pre-processing options, applied in this order:
 `--zero-first`, `--t0`, `--exclude MIN MAX`, `--wl-range`,
@@ -204,6 +205,40 @@ J. D. Scargle, *Astrophys. J.* **263**, 835 (1982).
   OD. Use `transpose=True` / `--transpose` for the opposite orientation and
   `time_scale` / `--time-scale` to convert delays to ps.
 * **`.scan`** (JSON): `[[wavelengths], [delays in fs], ΔA[delay][wavelength], [background]]`.
+
+`read_ta` and the TA commands detect the format of each file (`--format`
+overrides it). All readers return wavelengths in nm, delays in ps and ΔA in OD.
+
+| Setup | Files | Reader | Notes |
+|-------|-------|--------|-------|
+| HELIOS (Ultrafast Systems) | ΔA matrix `.dat` | `read_helios` (= TA matrix) | Dead pixels (NaN) are dropped. Scans store measured delays that jitter by ~25 fs: average them with `delay_tolerance=0.05` / `--delay-tolerance 0.05`. |
+| HELIOS raw | `…_RAW_Signal Pump on.dat` + `…Pump off.dat` | `read_helios_raw(on, off)` | ΔA = −log₁₀(I_on / I_off). |
+| HARPIA (Light Conversion) | `…_matrix.dat` | `read_harpia` | ΔA in mOD and delay unit from `YAxisTitle` are converted. The raw `Run*.dat` files are rejected with a hint. |
+| HARBOR | one `.dat` per scan (pixel header, delays in fs) | `read_harbor` | Forward and backward stage sweeps are averaged with standard errors. Files with 580- and 600-pixel channels are aligned on common pixels. Pixel axis unless a calibration is given. |
+
+**HARBOR wavelength calibration.** The HARBOR detector records pixels behind a
+fused-silica prism. `calibrate_harbor` fits the prism model (Sellmeier
+dispersion, two free parameters) to the transmission of a BG36 filter,
+`I(with filter) / I(without filter)`. That transmission is compared with
+`10^−A_ref` of a spectrophotometer reference broadened to the detector
+resolution, after a grid search that avoids assigning the wrong band:
+
+```python
+fit = st.calibrate_harbor(["calib1b_0001.dat", "calib1b_0002.dat"],   # with BG36
+                          ["calib1a_0001.dat", "calib1a_0002.dat"],   # open beam
+                          "RefBG36.txt")                              # nm, OD
+print(fit)                                   # parameters, resolution, R², pixel/nm range
+fit.calibration.save("harbor_cal.json")
+ta = st.read_ta(scan_files, calibration="harbor_cal.json", pixel_range=(224, 336))
+```
+
+```bash
+spectro wl-calibrate --with-filter calib1b_*.dat --without-filter calib1a_*.dat     --reference RefBG36.txt --save harbor_cal.json --out wl_cal
+spectro ta Retinal_*.dat --calibration harbor_cal.json --pixel-range 224 336 --out retinal
+```
+
+Only pixels with probe light are fitted. Outside `fit.calibration.valid_pixels`
+the wavelengths are extrapolated with the dispersion model.
 * **Export**: `write_ta_matrix` uses the same matrix layout. `write_ta_xyz`
   writes `wavelength delay value` triplets in blocks (gnuplot `splot`/`pm3d`,
   Origin XYZ).
@@ -214,7 +249,8 @@ The example data are described in [`examples/data/README.md`](examples/data/READ
 
 ```
 src/spectroscopy_toolset/
-    io.py           readers/writers (spectra, TA matrices, .scan, xyz)
+    io.py           readers/writers (spectra, TA matrices, .scan, HELIOS, HARPIA, HARBOR, xyz)
+    calibration.py  prism-spectrometer wavelength calibration (HARBOR, BG36 filter)
     spectrum.py     Spectrum container (UV-vis)
     uvvis.py        peaks, deconvolution, Beer-Lambert, Tauc
     transient.py    TAData container, chirp correction, oscillations

@@ -289,6 +289,35 @@ def plot_calibration(result: CalibrationResult, ax=None, unit: str = "M"):
     return ax
 
 
+def plot_wavelength_calibration(fit, ax=None):
+    """Measured filter transmission against the fitted (broadened) reference, on the calibrated axis."""
+    ax = _axes(ax)
+    wl = fit.wavelengths
+    ax.plot(
+        wl,
+        fit.transmission,
+        "o",
+        color=CATEGORICAL[0],
+        markersize=4,
+        markeredgecolor="white",
+        label="measured",
+        zorder=3,
+    )
+    ax.plot(
+        wl,
+        fit.model,
+        color=CATEGORICAL[1],
+        linewidth=1.5,
+        label=rf"reference, $\sigma$ = {fit.broadening:.1f} nm (R$^2$ = {fit.r_squared:.3f})",
+    )
+    ax.set_xlabel("Wavelength (nm)")
+    ax.set_ylabel("Transmission")
+    top = ax.secondary_xaxis("top", functions=(fit.calibration.pixels, fit.calibration.wavelengths))
+    top.set_xlabel("Pixel", color=INK_SECONDARY)
+    _legend(ax, 2)
+    return ax
+
+
 # --------------------------------------------------------------------------
 # Transient absorption
 # --------------------------------------------------------------------------
