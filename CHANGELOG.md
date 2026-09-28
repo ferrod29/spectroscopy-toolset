@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased - instrument formats and HARBOR wavelength calibration
+
+Ported and reworked from the retinal TA notebooks.
+
+### New
+
+* Readers for three TA setups, detected automatically by `read_ta`, the CLI
+  and the TA Inspector: HELIOS ΔA matrices and raw pump-on/off intensities
+  (`read_helios`, `read_helios_raw`), HARPIA `*_matrix.dat` exports
+  (`read_harpia`, mOD → OD) and HARBOR scans (`read_harbor`). HARBOR scans
+  have forward and backward sweeps, delays in fs, mOD, and 580- or 600-pixel
+  channels.
+* `calibration` module: `PrismCalibration` (fused-silica prism, Sellmeier
+  dispersion, JSON save/load), `fit_prism_calibration` and `calibrate_harbor`,
+  plus `spectro wl-calibrate` and `plot_wavelength_calibration`.
+* `average_scans(..., delay_tolerance=)` / `--delay-tolerance` averages scans
+  whose measured delay grids jitter slightly, and records the spread.
+  NaN points are averaged over the scans that have them.
+* TA matrices: `dA_scale`, and dead pixels (all-NaN rows) are dropped.
+
+### Problems found in the notebook code
+
+* **BG36 calibration can lock onto the wrong bands.** The notebook fit scales
+  the reference *absorbance* linearly onto the normalised intensity ratio, and
+  the result depends on the starting values. From `WavelengthCalibrator`'s
+  starting values it converges to a wrong band assignment: the 585 nm band
+  (OD 3.7, the strongest) does not appear in the calibrated data at all. That
+  run wrote `raw/20260327/calib_wavelengths.txt` (411-728 nm, residual 21×
+  larger than the new fit). The earlier fit in
+  `processed/20260327/calib_wavelengths.txt`, which the retinal notebooks use,
+  is good: it differs from the new calibration by 0.3-2.4 nm over the lit
+  pixels (221-336). The new fit works in transmission, includes the detector
+  resolution (σ ≈ 5.8 nm) and starts from a grid search, so it does not depend
+  on starting values (R² = 0.957, scale 0.93).
+* `WavelengthCalibrator` used a 24 µm pixel while `GetLambda2024` and
+  `TfsGet36_2024` used 25 µm. Only `f / pixel size` matters, so the
+  wavelengths agree, but the reported focal lengths do not. Its `__init__`
+  also discarded the result. The saved file header says µm for values in nm.
+* HARBOR files were sliced as `columns 1:601`. For files with 580-pixel
+  channels this mixed 20 pixels of the second channel into the spectrum.
+* `snippets.chirp_correction` ignored its fitted polynomial and used a
+  hard-coded one. It modified the input array in place, and it returned the
+  corrected time axis of the last pixel only. Use `TAData.estimate_chirp` /
+  `correct_chirp`.
+* The HELIOS notebook stored each scan as both "forward" and "backward".
+  The standard error was therefore divided by √(2N) instead of √N, which
+  understated it by √2.
+
 ## 0.2.0 - restructure into a package
 
 The loose scripts became an installable package (`src/spectroscopy_toolset`) with

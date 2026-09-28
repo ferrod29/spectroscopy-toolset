@@ -11,10 +11,16 @@ Quick start::
     print(ta.fit_kinetics(550, n_exp=2))
 """
 
-from . import models, processing, uvvis
+from . import calibration, models, processing, uvvis
+from .calibration import PrismCalibration, calibrate_harbor, fit_prism_calibration
 from .fitting import FitResult, GlobalFitResult, das_to_eads, fit, fit_kinetics, global_fit
 from .io import (
+    detect_ta_format,
     load_table,
+    read_harbor,
+    read_harpia,
+    read_helios,
+    read_helios_raw,
     read_spectra,
     read_spectrum,
     read_ta,
@@ -40,19 +46,28 @@ __all__ = [
     "ChirpModel",
     "FitResult",
     "GlobalFitResult",
+    "PrismCalibration",
     "Spectrum",
     "TAData",
     "average_scans",
+    "calibrate_harbor",
+    "calibration",
     "das_to_eads",
+    "detect_ta_format",
     "estimate_chirp",
     "fit",
     "fit_chirp",
     "fit_kinetics",
+    "fit_prism_calibration",
     "global_fit",
     "load_table",
     "models",
     "oscillation_spectrum",
     "processing",
+    "read_harbor",
+    "read_harpia",
+    "read_helios",
+    "read_helios_raw",
     "read_spectra",
     "read_spectrum",
     "read_ta",

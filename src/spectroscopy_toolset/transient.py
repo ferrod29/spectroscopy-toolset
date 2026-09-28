@@ -7,6 +7,7 @@ density (OD), stored as an ``(n_wavelengths, n_delays)`` array.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -256,13 +257,20 @@ class TAData:
         write_ta_xyz(path, self, scale=scale)
 
 
-def average_scans(scans: Sequence[TAData]) -> TAData:
+def average_scans(scans: Sequence[TAData], delay_tolerance: float = 0.0) -> TAData:
     """Average repeated scans measured on identical axes.
 
-    The returned ``std`` is the standard error of the mean.
+    The returned ``std`` is the standard error of the mean. NaN entries (e.g.
+    pixels flagged in some scans) are averaged over the remaining scans.
+
+    Setups that store the measured stage position (HELIOS, HARBOR) give every
+    scan a slightly different delay grid. ``delay_tolerance`` (ps) accepts
+    grids that differ by at most that much; the result then uses the mean
+    delays and stores the largest deviation in ``meta['delay_spread_ps']``.
     """
     scans = list(scans)
     first = scans[0]
+    spread = 0.0
     for other in scans[1:]:
         if other.shape != first.shape or not np.allclose(other.wavelengths, first.wavelengths):
             raise ValueError(
@@ -270,24 +278,42 @@ def average_scans(scans: Sequence[TAData]) -> TAData:
             )
         if not np.allclose(other.delays, first.delays):
             offset = other.delays - first.delays
+            if np.abs(offset).max() <= delay_tolerance:
+                spread = max(spread, float(np.abs(offset).max()))
+                continue
             detail = (
                 f"its delays are offset by {offset[0]:+.4g} ps"
                 if np.allclose(offset, offset[0])
-                else "its delay grid differs"
+                else f"its delay grid differs by up to {np.abs(offset).max():.3g} ps"
             )
             raise ValueError(
                 f"cannot average {other.name!r} with {first.name!r}: {detail}. If these are repeated "
-                "scans with a re-zeroed delay stage, align them with TAData.shift_time() first."
+                "scans with a re-zeroed delay stage, align them with TAData.shift_time() first; "
+                "if the stage position jitters, pass a delay_tolerance."
             )
     if len(scans) == 1:
         return first.copy()
     stack = np.stack([s.dA for s in scans])
     sources = [src for s in scans for src in s.meta.get("source", [s.name])]
+    if np.isfinite(stack).all():
+        mean, sem = stack.mean(axis=0), stack.std(axis=0, ddof=1) / np.sqrt(len(scans))
+    else:  # points missing (NaN) in some scans are averaged over the others
+        n = np.isfinite(stack).sum(axis=0)
+        with np.errstate(invalid="ignore", divide="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            mean = np.nanmean(stack, axis=0)
+            sem = np.nanstd(stack, axis=0, ddof=1) / np.sqrt(n)
+    meta = {**first.meta, "source": sources, "n_scans": len(scans)}
+    delays = first.delays
+    if spread > 0:
+        delays = np.mean([s.delays for s in scans], axis=0)
+        meta["delay_spread_ps"] = spread
     return first.copy(
-        dA=stack.mean(axis=0),
-        std=stack.std(axis=0, ddof=1) / np.sqrt(len(scans)),
+        delays=delays,
+        dA=mean,
+        std=sem,
         name=f"{first.name} (mean of {len(scans)})",
-        meta={**first.meta, "source": sources, "n_scans": len(scans)},
+        meta=meta,
     )
 
 

@@ -6,6 +6,7 @@ uvvis       plot/process steady-state spectra, optionally list peaks
 deconvolve  fit overlapping bands with Gaussian/Lorentzian/Voigt profiles
 tauc        optical band gap from a Tauc plot
 calibrate   Beer-Lambert calibration curve with LOD/LOQ
+wl-calibrate  pixel -> wavelength calibration of the HARBOR prism detector (BG36 filter)
 ta          TA map, kinetic traces (optionally fitted) and transient spectra
 ta-global   global analysis (DAS/EADS) of TA data
 ta-export   write processed TA data as a matrix or xyz triplets
@@ -159,6 +160,23 @@ def cmd_tauc(args) -> int:
     return 0
 
 
+def cmd_wl_calibrate(args) -> int:
+    from . import plotting
+    from .calibration import calibrate_harbor
+
+    kwargs = {"pixel_range": tuple(args.pixel_range)} if args.pixel_range else {}
+    fit = calibrate_harbor(args.with_filter, args.without_filter, args.reference, **kwargs)
+    print(fit)
+    if args.save:
+        fit.calibration.save(args.save)
+        print(f"saved {args.save}")
+    saved: list[str] = []
+    ax = plotting.plot_wavelength_calibration(fit)
+    _figure_output(ax.figure, args.out, "", saved)
+    _finish(args, saved)
+    return 0
+
+
 def cmd_calibrate(args) -> int:
     from . import plotting
 
@@ -188,8 +206,24 @@ def cmd_calibrate(args) -> int:
 # --------------------------------------------------------------------------
 # Transient-absorption commands
 # --------------------------------------------------------------------------
+def _ta_reader_options(args) -> dict:
+    """Reader keyword arguments that apply to the chosen (or detected) file format."""
+    fmt = args.format if args.format != "auto" else stio.detect_ta_format(args.files[0])
+    if fmt == "harbor":
+        options = {"calibration": args.calibration, "sweeps": args.sweeps}
+        if args.pixel_range:
+            options["pixel_range"] = tuple(args.pixel_range)
+        return options
+    if args.calibration or args.pixel_range:
+        raise ValueError("--calibration and --pixel-range apply to HARBOR files only")
+    options = {"delay_tolerance": args.delay_tolerance}
+    if fmt in ("matrix", "helios"):
+        options.update(transpose=args.transpose, time_scale=args.time_scale)
+    return options
+
+
 def _load_ta(args) -> TAData:
-    data = stio.read_ta(args.files, transpose=args.transpose, time_scale=args.time_scale)
+    data = stio.read_ta(args.files, format=args.format, **_ta_reader_options(args))
     if args.zero_first:
         data = data.shift_time(data.delays[0])
     if args.t0 is not None:
@@ -299,7 +333,34 @@ def _ta_parent() -> argparse.ArgumentParser:
     g.add_argument(
         "files",
         nargs="+",
-        help="TA matrix files (.dat/.txt/.csv) or .scan files; several are averaged",
+        help="TA files (matrix .dat/.txt/.csv, .scan, HARPIA or HARBOR); several are averaged",
+    )
+    g.add_argument(
+        "--format",
+        choices=["auto", "matrix", "helios", "harpia", "harbor", "scan"],
+        default="auto",
+        help="file format (default: detect; HELIOS exports are plain matrices)",
+    )
+    g.add_argument(
+        "--delay-tolerance",
+        type=float,
+        default=0.0,
+        metavar="PS",
+        help="average scans whose measured delays differ by up to this (e.g. 0.05 for HELIOS)",
+    )
+    g.add_argument(
+        "--calibration",
+        metavar="FILE",
+        help="HARBOR wavelength calibration (JSON from wl-calibrate, or one wavelength per pixel)",
+    )
+    g.add_argument(
+        "--pixel-range", nargs=2, type=float, metavar=("MIN", "MAX"), help="HARBOR pixels to keep"
+    )
+    g.add_argument(
+        "--sweeps",
+        choices=["both", "forward", "backward"],
+        default="both",
+        help="HARBOR delay-stage sweeps to average",
     )
     g.add_argument("--transpose", action="store_true", help="delays run down the first column")
     g.add_argument(
@@ -424,6 +485,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--unit", default="M", help="concentration unit for the axis label")
     p.add_argument("--out", help=out_help)
     p.set_defaults(func=cmd_calibrate)
+
+    p = sub.add_parser(
+        "wl-calibrate", help="HARBOR pixel -> wavelength calibration from BG36 filter scans"
+    )
+    p.add_argument("--with-filter", nargs="+", required=True, help="HARBOR files with the filter")
+    p.add_argument("--without-filter", nargs="+", required=True, help="open-beam HARBOR files")
+    p.add_argument("--reference", required=True, help="filter absorbance: wavelength (nm), OD")
+    p.add_argument(
+        "--pixel-range", nargs=2, type=float, metavar=("MIN", "MAX"), help="pixels to fit"
+    )
+    p.add_argument("--save", metavar="JSON", help="write the calibration (for --calibration)")
+    p.add_argument("--out", help=out_help)
+    p.set_defaults(func=cmd_wl_calibrate)
 
     ta_parent = _ta_parent()
     p = sub.add_parser("ta", parents=[ta_parent], help="TA map, kinetics and spectra")
